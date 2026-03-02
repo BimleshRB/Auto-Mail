@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import { decryptData } from '@/lib/encryption';
 
 export async function POST(req: Request) {
   try {
@@ -27,14 +28,17 @@ export async function POST(req: Request) {
 
     const { professionalLinks, apiKeys } = user;
 
-    const geminiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
+    // Use user provided array, fallback to global if none exist. Decrypt before handing to Google SDK.
+    const rawKeys = Array.isArray(apiKeys?.gemini) ? apiKeys.gemini : [];
+    const decryptedKeys = rawKeys.map((k: string) => decryptData(k)).filter(Boolean) as string[];
 
-    if (!geminiKey) {
-      return NextResponse.json({ error: 'No Gemini API Key found. Please configure it in your System Config or set GEMINI_API_KEY globally.' }, { status: 500 });
+    const geminiKeys: string[] = decryptedKeys.length > 0 
+      ? decryptedKeys 
+      : process.env.GEMINI_API_KEY ? [process.env.GEMINI_API_KEY] : [];
+
+    if (geminiKeys.length === 0) {
+      return NextResponse.json({ error: 'No Gemini API Keys found. Please configure them in your System Config or set GEMINI_API_KEY globally.' }, { status: 500 });
     }
-
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
       You are an expert software engineer writing a highly professional, concise, and compelling cold email to a recruiter/HR manager.
@@ -63,11 +67,34 @@ export async function POST(req: Request) {
       - No subject line in the output, just the body of the email.
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    let generatedText = '';
+    let lastError = null;
 
-    return NextResponse.json({ template: text });
+    // Try each key sequentially
+    for (const key of geminiKeys) {
+      try {
+        const genAI = new GoogleGenerativeAI(key);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        
+        const result = await model.generateContent(prompt);
+        generatedText = result.response.text().trim();
+        break; // Success! Break out of the loop
+      } catch (err: any) {
+        console.error(`Gemini API Error with key ending in ...${key.slice(-4)}:`, err);
+        lastError = err;
+        
+        // Typical HTTP 429 means Rate Limit - continue to next key. 
+        // If it's a different error (like a 400 Bad Request on the prompt itself), 
+        // we might still want to just try the next key just in case, but usually 429 is the main rotation trigger.
+        continue;
+      }
+    }
+
+    if (!generatedText) {
+      return NextResponse.json({ error: lastError?.message || 'Failed to generate template across all provided API keys. You may have hit rate limits.' }, { status: 500 });
+    }
+
+    return NextResponse.json({ template: generatedText });
   } catch (error: any) {
     console.error('Error generating template:', error);
     return NextResponse.json({ error: error.message || 'Something went wrong' }, { status: 500 });

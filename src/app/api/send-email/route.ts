@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import { decryptData } from '@/lib/encryption';
 
 export async function POST(req: Request) {
   try {
@@ -25,11 +26,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email configuration missing in user profile.' }, { status: 404 });
     }
 
+    const { gmailAddress, appPassword } = user.emailConfig;
+    const decryptedPassword = decryptData(appPassword);
+
+    if (!gmailAddress || !decryptedPassword) {
+      return NextResponse.json({ error: 'Incomplete email configuration. Please set your Gmail and App Password in System Config.' }, { status: 400 });
+    }
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: user.emailConfig.gmailAddress,
-        pass: user.emailConfig.appPassword,
+        user: gmailAddress,
+        pass: decryptedPassword,
       },
     });
 

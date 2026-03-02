@@ -18,7 +18,7 @@ const UserSchema = new mongoose.Schema({
     twitter: { type: String, default: '' },
   },
   apiKeys: {
-    gemini: { type: String, default: '' },
+    gemini: { type: [String], default: [] },
   },
   jobPreferences: {
     roles: { type: [String], default: [] }

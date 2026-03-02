@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { Settings, Target, Send, Mail, Briefcase, Link as LinkIcon, Lock, Sparkles, LogOut, ShieldAlert, UserCircle, CheckCircle2, AlertCircle, Bot } from "lucide-react";
+import { BulkCampaign } from "@/components/BulkCampaign";
 
 export default function Dashboard() {
   const { data: session } = useSession();
   const [profile, setProfile] = useState({
     emailConfig: { gmailAddress: "", appPassword: "" },
-    apiKeys: { gemini: "" },
+    apiKeys: { geminiAsString: "" },
     professionalLinks: { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
     jobPreferences: { roles: [] as string[] }
   });
@@ -45,9 +46,15 @@ export default function Dashboard() {
       const res = await fetch('/api/profile');
       if (res.ok) {
         const data = await res.json();
+        
+        let geminiStr = "";
+        if (data.apiKeys && Array.isArray(data.apiKeys.gemini)) {
+            geminiStr = data.apiKeys.gemini.join(", ");
+        }
+
         setProfile({
           emailConfig: data.emailConfig || { gmailAddress: "", appPassword: "" },
-          apiKeys: data.apiKeys || { gemini: "" },
+          apiKeys: { geminiAsString: geminiStr },
           professionalLinks: data.professionalLinks || { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
           jobPreferences: data.jobPreferences || { roles: [] }
         });
@@ -68,10 +75,17 @@ export default function Dashboard() {
   const saveProfile = async () => {
     setLoadingProfile(true);
     try {
+      const payload = {
+        emailConfig: profile.emailConfig,
+        professionalLinks: profile.professionalLinks,
+        apiKeys: { gemini: profile.apiKeys.geminiAsString.split(",").map(k => k.trim()).filter(Boolean) },
+        jobPreferences: profile.jobPreferences
+      };
+
       const res = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         showNotification("Profile configurations saved securely.", "success");
@@ -281,18 +295,18 @@ export default function Dashboard() {
                        <Bot className="w-3.5 h-3.5" /> Generative AI
                      </h3>
                     <div>
-                      <Label className={labelClasses}>Google Gemini API Key</Label>
+                      <Label className={labelClasses}>Google Gemini API Keys</Label>
                       <div className="relative">
                         <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-600" />
                         <Input 
-                          type="password" 
+                          type="text" 
                           className={`${inputClasses} pl-10`}
-                          value={profile.apiKeys?.gemini || ""} 
-                          onChange={(e) => handleProfileChange('apiKeys', 'gemini', e.target.value)} 
-                          placeholder="AIzaSy..." 
+                          value={profile.apiKeys?.geminiAsString || ""} 
+                          onChange={(e) => handleProfileChange('apiKeys', 'geminiAsString', e.target.value)} 
+                          placeholder="AIzaSy..., AIzaSy2..." 
                         />
                       </div>
-                      <p className="text-xs text-zinc-500 mt-2">Required for the backend AI synthesis pipeline.</p>
+                      <p className="text-xs text-zinc-500 mt-2">Enter multiple keys separated by commas. We will auto-rotate them if you hit limits.</p>
                     </div>
                   </div>
                 </div>
@@ -435,7 +449,7 @@ export default function Dashboard() {
                   <Button 
                     onClick={generateTemplate} 
                     disabled={generating || !targetDetails.hrName || !targetDetails.companyName || !targetDetails.targetRole} 
-                    className="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] border border-indigo-400/20 font-bold text-white tracking-wide transition-all gap-2"
+                    className="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] border border-indigo-400/20 font-bold text-white tracking-wide transition-all gap-2 flex items-center justify-center"
                   >
                     <Sparkles className={`w-5 h-5 ${generating ? 'animate-pulse' : ''}`} />
                     {generating ? "Synthesizing AI Response..." : "Generate Neural Draft"}
@@ -478,7 +492,7 @@ export default function Dashboard() {
                   <Button 
                     onClick={sendEmail} 
                     disabled={sending || !emailTemplate} 
-                    className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] border border-emerald-400/20 font-bold text-white tracking-wide transition-all gap-2"
+                    className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] border border-emerald-400/20 font-bold text-white tracking-wide transition-all gap-2 flex items-center justify-center"
                   >
                     <Send className={`w-5 h-5 ${sending ? 'animate-bounce' : ''}`} />
                     {sending ? "Transmitting..." : "Initialize Dispatch"}
@@ -489,6 +503,11 @@ export default function Dashboard() {
 
           </div>
         </div>
+        
+        {/* Bulk Campaign Full Width */}
+        <motion.div custom={4} initial="hidden" animate="visible" variants={staggerVariants} className="mt-8">
+          <BulkCampaign profile={profile} showNotification={showNotification} />
+        </motion.div>
       </div>
     </div>
   );

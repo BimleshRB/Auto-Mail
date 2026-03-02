@@ -46,12 +46,9 @@ export default function LandingPage() {
             <span className="text-xl font-bold tracking-tight text-white">Auto <span className="text-indigo-400">Mail</span></span>
           </div>
           <div className="flex items-center gap-4">
-            <Button asChild variant="ghost" className="text-zinc-300 hover:text-white hover:bg-white/5">
-              <Link href="/login">Log In</Link>
-            </Button>
             <Button asChild className="bg-white text-zinc-950 hover:bg-zinc-200 shadow-[0_0_15px_rgba(255,255,255,0.1)] font-semibold transition-all">
               <Link href={session ? "/dashboard" : "/login"}>
-                {session ? "Dashboard" : "Get Started"} <ArrowRight className="w-4 h-4 ml-2" />
+                {session ? "Dashboard" : "Try It"} <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </Button>
           </div>
@@ -84,12 +81,7 @@ export default function LandingPage() {
             <motion.div variants={fadeIn} className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <Button asChild size="lg" className="w-full sm:w-auto h-14 px-8 text-lg bg-indigo-600 hover:bg-indigo-500 shadow-[0_0_30px_rgba(79,70,229,0.3)] hover:shadow-[0_0_40px_rgba(79,70,229,0.5)] border border-indigo-400/20 font-bold transition-all">
                 <Link href={session ? "/dashboard" : "/login"}>
-                  Start Automating Free <Zap className="w-5 h-5 ml-2" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 text-lg border-white/10 text-white hover:bg-white/5 font-semibold backdrop-blur-sm transition-all">
-                <Link href="#features">
-                  How it works
+                  {session ? "Open Dashboard" : "Try It"} <Zap className="w-5 h-5 ml-2" />
                 </Link>
               </Button>
             </motion.div>
