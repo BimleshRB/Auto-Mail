@@ -21,7 +21,8 @@ export async function GET() {
         {
           $setOnInsert: {
             emailConfig: { gmailAddress: '', appPassword: '' },
-            professionalLinks: { resume: '', portfolio: '', github: '', linkedin: '', twitter: '' },
+            professionalLinks: { resume: '', resumeText: '', portfolio: '', github: '', linkedin: '', twitter: '' },
+            apiKeys: { gemini: '' },
             jobPreferences: { roles: [] }
           }
         },
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
     } else {
       user.emailConfig = data.emailConfig;
       user.professionalLinks = data.professionalLinks;
+      user.apiKeys = data.apiKeys;
       user.jobPreferences = data.jobPreferences;
     }
     

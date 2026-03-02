@@ -54,7 +54,7 @@ export default function Login() {
             </motion.div>
             <div className="space-y-2">
               <CardTitle className="text-3xl font-bold tracking-tight text-white drop-shadow-sm">
-                Outreach<span className="text-indigo-400">.ai</span>
+                Auto <span className="text-indigo-400">Mail</span>
               </CardTitle>
               <CardDescription className="text-zinc-400 font-medium text-base">
                 Intelligent cold email automation.

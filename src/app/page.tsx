@@ -43,7 +43,7 @@ export default function LandingPage() {
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">Outreach<span className="text-indigo-400">.ai</span></span>
+            <span className="text-xl font-bold tracking-tight text-white">Auto <span className="text-indigo-400">Mail</span></span>
           </div>
           <div className="flex items-center gap-4">
             <Button asChild variant="ghost" className="text-zinc-300 hover:text-white hover:bg-white/5">
@@ -78,7 +78,7 @@ export default function LandingPage() {
             </motion.h1>
             
             <motion.p variants={fadeIn} className="max-w-2xl mx-auto text-lg md:text-xl text-zinc-400 font-medium leading-relaxed">
-              Stop writing generic applications. Outreach.ai synthesizes your digital footprint and target roles to craft the perfect email, directly dispatched via Gmail integrations.
+              Stop writing generic applications. Auto Mail synthesizes your digital footprint and target roles to craft the perfect email, directly dispatched via Gmail integrations.
             </motion.p>
             
             <motion.div variants={fadeIn} className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -151,9 +151,9 @@ export default function LandingPage() {
       <footer className="border-t border-white/5 bg-zinc-950 py-12 text-center text-zinc-500 font-medium text-sm">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center justify-center space-y-4">
           <div className="flex items-center gap-2 text-zinc-400">
-            <Sparkles className="w-4 h-4" /> Outreach.ai Platform
+            <Sparkles className="w-4 h-4" /> Auto Mail Platform
           </div>
-          <p>© {new Date().getFullYear()} Outreach Automation. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Auto Mail. All rights reserved.</p>
         </div>
       </footer>
     </div>

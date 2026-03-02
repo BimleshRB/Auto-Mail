@@ -25,13 +25,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User profile not found. Please save your profile settings first.' }, { status: 404 });
     }
 
-    const { professionalLinks } = user;
+    const { professionalLinks, apiKeys } = user;
 
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not configured.' }, { status: 500 });
+    const geminiKey = apiKeys?.gemini || process.env.GEMINI_API_KEY;
+
+    if (!geminiKey) {
+      return NextResponse.json({ error: 'No Gemini API Key found. Please configure it in your System Config or set GEMINI_API_KEY globally.' }, { status: 500 });
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
@@ -41,16 +43,20 @@ export async function POST(req: Request) {
       Target Company: ${companyName}
       Target Role: ${targetRole}
       
-      My Professional Links:
-      - Resume: ${professionalLinks.resume || 'N/A'}
-      - Portfolio: ${professionalLinks.portfolio || 'N/A'}
-      - GitHub: ${professionalLinks.github || 'N/A'}
-      - LinkedIn: ${professionalLinks.linkedin || 'N/A'}
-      - Twitter: ${professionalLinks.twitter || 'N/A'}
+      My Raw Resume Context (Use this to highly personalize the email to my actual experience):
+      ${professionalLinks?.resumeText ? professionalLinks.resumeText : 'No raw resume provided.'}
+
+      My Professional Links (Include relevant ones as a signature or call to action):
+      - Resume URL: ${professionalLinks?.resume || 'N/A'}
+      - Portfolio: ${professionalLinks?.portfolio || 'N/A'}
+      - GitHub: ${professionalLinks?.github || 'N/A'}
+      - LinkedIn: ${professionalLinks?.linkedin || 'N/A'}
+      - Twitter: ${professionalLinks?.twitter || 'N/A'}
       
       Requirements:
       - Keep it under 150 words.
       - Be highly professional and confident.
+      - Extract relevant framing from my "Raw Resume Context" to prove I am a perfect fit for the "${targetRole}" role at "${companyName}".
       - Mention the target role and company name clearly.
       - End with a call to action.
       - Do not include placeholders like "[Your Name]". Assume the sender will review it. Just write the email body.

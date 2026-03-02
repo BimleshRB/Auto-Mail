@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { Settings, Target, Send, Mail, Briefcase, Link as LinkIcon, Lock, Sparkles, LogOut, ShieldAlert, UserCircle, CheckCircle2, AlertCircle } from "lucide-react";
+import { Settings, Target, Send, Mail, Briefcase, Link as LinkIcon, Lock, Sparkles, LogOut, ShieldAlert, UserCircle, CheckCircle2, AlertCircle, Bot } from "lucide-react";
 
 export default function Dashboard() {
   const { data: session } = useSession();
   const [profile, setProfile] = useState({
     emailConfig: { gmailAddress: "", appPassword: "" },
-    professionalLinks: { resume: "", portfolio: "", github: "", linkedin: "", twitter: "" },
+    apiKeys: { gemini: "" },
+    professionalLinks: { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
     jobPreferences: { roles: [] as string[] }
   });
 
@@ -46,7 +47,8 @@ export default function Dashboard() {
         const data = await res.json();
         setProfile({
           emailConfig: data.emailConfig || { gmailAddress: "", appPassword: "" },
-          professionalLinks: data.professionalLinks || { resume: "", portfolio: "", github: "", linkedin: "", twitter: "" },
+          apiKeys: data.apiKeys || { gemini: "" },
+          professionalLinks: data.professionalLinks || { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
           jobPreferences: data.jobPreferences || { roles: [] }
         });
         if (data.jobPreferences?.roles?.length > 0) {
@@ -82,7 +84,7 @@ export default function Dashboard() {
     setLoadingProfile(false);
   };
 
-  const handleProfileChange = (section: 'emailConfig' | 'professionalLinks', field: string, value: string) => {
+  const handleProfileChange = (section: 'emailConfig' | 'professionalLinks' | 'apiKeys', field: string, value: string) => {
     setProfile(prev => ({
       ...prev,
       [section]: {
@@ -181,7 +183,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">
-                Outreach<span className="text-indigo-400">.ai</span>
+                Auto <span className="text-indigo-400">Mail</span>
               </h1>
               <p className="text-zinc-400 font-medium text-sm mt-0.5">Automated Cold Email Engine</p>
             </div>
@@ -271,6 +273,30 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* AI Configuration Section */}
+                <div className="space-y-5 relative mt-8">
+                   <div className="absolute -inset-4 bg-zinc-950/30 rounded-2xl border border-white/5 pointer-events-none shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]" />
+                   <div className="relative z-10 space-y-4">
+                     <h3 className="text-xs font-bold text-emerald-400/80 uppercase tracking-widest flex items-center gap-2">
+                       <Bot className="w-3.5 h-3.5" /> Generative AI
+                     </h3>
+                    <div>
+                      <Label className={labelClasses}>Google Gemini API Key</Label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-600" />
+                        <Input 
+                          type="password" 
+                          className={`${inputClasses} pl-10`}
+                          value={profile.apiKeys?.gemini || ""} 
+                          onChange={(e) => handleProfileChange('apiKeys', 'gemini', e.target.value)} 
+                          placeholder="AIzaSy..." 
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-2">Required for the backend AI synthesis pipeline.</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Professional Links Section */}
                 <div className="space-y-5 relative mt-8">
                    <div className="absolute -inset-4 bg-zinc-950/30 rounded-2xl border border-white/5 pointer-events-none shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]" />
@@ -317,6 +343,17 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
+                    
+                    <div className="mt-6">
+                      <Label className={labelClasses}>Raw Resume Context</Label>
+                      <Textarea 
+                        rows={6}
+                        className={`${inputClasses} h-auto py-3 text-sm`}
+                        value={profile.professionalLinks.resumeText || ""} 
+                        onChange={(e) => handleProfileChange('professionalLinks', 'resumeText', e.target.value)} 
+                        placeholder="Paste your entire resume text here. The AI will use this strictly as context to synthesize highly personalized email drafts." 
+                      />
+                    </div>
                 </div>
 
                 <Button 

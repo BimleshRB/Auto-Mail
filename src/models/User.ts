@@ -11,10 +11,14 @@ const UserSchema = new mongoose.Schema({
   },
   professionalLinks: {
     resume: { type: String, default: '' },
+    resumeText: { type: String, default: '' },
     portfolio: { type: String, default: '' },
     github: { type: String, default: '' },
     linkedin: { type: String, default: '' },
     twitter: { type: String, default: '' },
+  },
+  apiKeys: {
+    gemini: { type: String, default: '' },
   },
   jobPreferences: {
     roles: { type: [String], default: [] }
