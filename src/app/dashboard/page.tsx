@@ -273,15 +273,24 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <Label className={labelClasses}>App Password</Label>
-                      <div className="relative">
-                        <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-600" />
-                        <Input 
-                          type="password" 
-                          className={`${inputClasses} pl-10`}
-                          value={profile.emailConfig.appPassword} 
-                          onChange={(e) => handleProfileChange('emailConfig', 'appPassword', e.target.value)} 
-                          placeholder="••••••••••••••••" 
-                        />
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                          <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-600" />
+                          <Input 
+                            type="password" 
+                            className={`${inputClasses} pl-10`}
+                            value={profile.emailConfig.appPassword} 
+                            onChange={(e) => handleProfileChange('emailConfig', 'appPassword', e.target.value)} 
+                            placeholder="••••••••••••••••" 
+                          />
+                        </div>
+                        <Button 
+                          onClick={saveProfile} 
+                          disabled={loadingProfile}
+                          className="h-11 px-6 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 font-bold tracking-wide transition-all shadow-sm shrink-0"
+                        >
+                          {loadingProfile ? "Saving..." : "Save App Password"}
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -296,15 +305,24 @@ export default function Dashboard() {
                      </h3>
                     <div>
                       <Label className={labelClasses}>Google Gemini API Keys</Label>
-                      <div className="relative">
-                        <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-600" />
-                        <Input 
-                          type="text" 
-                          className={`${inputClasses} pl-10`}
-                          value={profile.apiKeys?.geminiAsString || ""} 
-                          onChange={(e) => handleProfileChange('apiKeys', 'geminiAsString', e.target.value)} 
-                          placeholder="AIzaSy..., AIzaSy2..." 
-                        />
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                          <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-600" />
+                          <Input 
+                            type="text" 
+                            className={`${inputClasses} pl-10`}
+                            value={profile.apiKeys?.geminiAsString || ""} 
+                            onChange={(e) => handleProfileChange('apiKeys', 'geminiAsString', e.target.value)} 
+                            placeholder="AIzaSy..., AIzaSy2..." 
+                          />
+                        </div>
+                        <Button 
+                          onClick={saveProfile} 
+                          disabled={loadingProfile}
+                          className="h-11 px-6 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-bold tracking-wide transition-all shadow-sm"
+                        >
+                          {loadingProfile ? "Saving..." : "Save Key"}
+                        </Button>
                       </div>
                       <p className="text-xs text-zinc-500 mt-2">Enter multiple keys separated by commas. We will auto-rotate them if you hit limits.</p>
                     </div>

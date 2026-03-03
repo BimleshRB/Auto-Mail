@@ -60,6 +60,8 @@ export async function POST(req: Request) {
     }
 
     const { emailConfig, professionalLinks, apiKeys, jobPreferences } = await req.json();
+    console.log("[DEBUG PROFILE] Received apiKeys:", apiKeys);
+    
     await dbConnect();
     
     const user = await User.findOne({ email: session.user?.email });
@@ -80,11 +82,14 @@ export async function POST(req: Request) {
     }
     if (jobPreferences) updatePayload.jobPreferences = jobPreferences;
 
-    await User.findOneAndUpdate(
+    console.log("[DEBUG PROFILE] Final Mongoose Update Payload:", updatePayload);
+
+    const doc = await User.findOneAndUpdate(
       { email: session.user?.email },
       { $set: updatePayload },
       { new: true, upsert: true }
     );
+    console.log("[DEBUG PROFILE] DB Write Success:", doc?.apiKeys);
     return NextResponse.json({ message: 'Profile updated successfully' });
   } catch (error: any) {
     console.error('Error updating profile:', error);
