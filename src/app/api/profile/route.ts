@@ -24,7 +24,7 @@ export async function GET() {
           $setOnInsert: {
             emailConfig: { gmailAddress: '', appPassword: '' },
             professionalLinks: { resume: '', resumeText: '', portfolio: '', github: '', linkedin: '', twitter: '' },
-            apiKeys: { gemini: [] },
+            apiKeys: { gemini: [], zerobounce: [], hunter: [], abstract: [] },
             jobPreferences: { roles: [] }
           }
         },
@@ -41,7 +41,10 @@ export async function GET() {
       },
       apiKeys: {
         ...user.apiKeys,
-        gemini: (user.apiKeys?.gemini || []).map((key: string) => decryptData(key)).filter(Boolean)
+        gemini: (user.apiKeys?.gemini || []).map((key: string) => decryptData(key)).filter(Boolean),
+        zerobounce: (user.apiKeys?.zerobounce || []).map((key: string) => decryptData(key)).filter(Boolean),
+        hunter: (user.apiKeys?.hunter || []).map((key: string) => decryptData(key)).filter(Boolean),
+        abstract: (user.apiKeys?.abstract || []).map((key: string) => decryptData(key)).filter(Boolean),
       }
     };
 
@@ -76,9 +79,19 @@ export async function POST(req: Request) {
       }
     }
     if (professionalLinks) updatePayload.professionalLinks = professionalLinks;
-    if (apiKeys && apiKeys.gemini) {
-      // ENCRYPT keys before saving
-      updatePayload['apiKeys.gemini'] = apiKeys.gemini.map((key: string) => encryptData(key)).filter(Boolean);
+    if (apiKeys) {
+      if (apiKeys.gemini) {
+        updatePayload['apiKeys.gemini'] = apiKeys.gemini.map((key: string) => encryptData(key)).filter(Boolean);
+      }
+      if (apiKeys.zerobounce) {
+        updatePayload['apiKeys.zerobounce'] = apiKeys.zerobounce.map((key: string) => encryptData(key)).filter(Boolean);
+      }
+      if (apiKeys.hunter) {
+        updatePayload['apiKeys.hunter'] = apiKeys.hunter.map((key: string) => encryptData(key)).filter(Boolean);
+      }
+      if (apiKeys.abstract) {
+        updatePayload['apiKeys.abstract'] = apiKeys.abstract.map((key: string) => encryptData(key)).filter(Boolean);
+      }
     }
     if (jobPreferences) updatePayload.jobPreferences = jobPreferences;
 

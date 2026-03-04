@@ -93,18 +93,24 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id, status, generatedTemplate, subject } = await req.json();
+    const { id, status, generatedTemplate, subject, verificationStatus } = await req.json();
 
-    if (!id || !status) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: 'Lead ID is required' }, { status: 400 });
     }
 
     await dbConnect();
     const user = await User.findOne({ email: session.user.email });
-    
-    const updatePayload: any = { status };
-    if (generatedTemplate) updatePayload.generatedTemplate = generatedTemplate;
-    if (subject) updatePayload.subject = subject;
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const updatePayload: any = {};
+    if (status) updatePayload.status = status;
+    if (generatedTemplate !== undefined) updatePayload.generatedTemplate = generatedTemplate;
+    if (subject !== undefined) updatePayload.subject = subject;
+    if (verificationStatus !== undefined) updatePayload.verificationStatus = verificationStatus;
 
     // We explicitly check the userId matches the session user to prevent modifying other users' leads
     const updatedLead = await Lead.findOneAndUpdate(

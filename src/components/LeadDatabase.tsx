@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, ChevronDown, ChevronUp, Database, AlertCircle, Loader2, PlayCircle, Trash2, Bot } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Database, AlertCircle, Loader2, PlayCircle, Trash2, Bot, ShieldAlert } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function LeadDatabase({ profile, showNotification }: { profile: any, showNotification: Function }) {
@@ -144,6 +144,60 @@ export function LeadDatabase({ profile, showNotification }: { profile: any, show
     }
     setExecuting(false);
     setSelectedIds(new Set());
+  };
+
+  const autoVerifySelected = async () => {
+    let unverifiedLeads = leads.filter(l => selectedIds.has(l._id as string) && l.status === 'pending');
+    
+    if (unverifiedLeads.length === 0) {
+      showNotification("No pending leads selected to verify.", "error");
+      return;
+    }
+
+    setExecuting(true);
+    let verifyCount = 0;
+    let failCount = 0;
+
+    for (const lead of unverifiedLeads) {
+      try {
+        const res = await fetch('/api/verify-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: lead.hrEmail })
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          await fetch('/api/leads', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              id: lead._id, 
+              verificationStatus: data.status 
+            })
+          });
+
+          setLeads(prev => prev.map(l => l._id === lead._id ? { ...l, verificationStatus: data.status } : l));
+          verifyCount++;
+        } else {
+           if (data.error && data.error.includes("429")) {
+              showNotification("Verification API Quota hit. Pausing background verification.", "error");
+              break;
+           }
+           failCount++;
+        }
+        
+        // Pacing to prevent rate limits
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+      } catch (err) {
+        console.error("Verification Sync Error", err);
+      }
+    }
+
+    setExecuting(false);
+    showNotification(`Verification Complete: ${verifyCount} completed, ${failCount} failed.`, verifyCount > 0 ? "success" : "error");
   };
 
   const autoApplySelected = async () => {
@@ -330,13 +384,27 @@ export function LeadDatabase({ profile, showNotification }: { profile: any, show
           
           <div className="flex flex-wrap items-center justify-start xl:justify-end gap-3 w-full xl:w-auto mt-2 xl:mt-0">
             {selectedIds.size > 0 && (
-              <Button 
+              <>
+                <Button 
+                variant="outline" 
                 onClick={handleCleanSelected}
-                disabled={executing}
-                className="h-10 px-4 rounded-xl bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/30 font-bold tracking-wide transition-all gap-2 shrink-0"
+                disabled={executing || selectedIds.size === 0}
+                className="h-10 px-4 rounded-xl border-orange-500/30 text-orange-400 hover:bg-orange-500/10 font-bold tracking-wide transition-all gap-2 shrink-0"
               >
-                <AlertCircle className="w-4 h-4" /> Clean ({selectedIds.size})
+                <ShieldAlert className="w-4 h-4" />
+                Clean Mails
               </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={autoVerifySelected}
+                disabled={executing || leads.filter(l => selectedIds.has(l._id as string) && l.status === 'pending').length === 0}
+                className="h-10 px-4 rounded-xl border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-bold tracking-wide transition-all gap-2 shrink-0"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Verify Selected
+              </Button>
+              </>
             )}
 
             {selectedIds.size > 0 && (
@@ -452,6 +520,23 @@ export function LeadDatabase({ profile, showNotification }: { profile: any, show
                       <span className="text-xs text-zinc-500 truncate pr-4">{lead.targetRole || 'Software Engineer'}</span>
                     </div>
                     <div className="w-[30%] flex justify-end items-center gap-3 pr-2">
+                    
+                      {/* Verification Status Badge */}
+                      {lead.verificationStatus === 'valid' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/30">
+                          <CheckCircle2 className="w-3 h-3" /> Valid
+                        </span>
+                      )}
+                      {lead.verificationStatus === 'bounced' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/30">
+                          <AlertCircle className="w-3 h-3" /> Bounced
+                        </span>
+                      )}
+                      {lead.verificationStatus === 'catch-all' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider border border-amber-500/30">
+                          <ShieldAlert className="w-3 h-3" /> Catch-All
+                        </span>
+                      )}
                       {lead.status === 'applied' ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold ring-1 ring-emerald-500/20">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Dispatched

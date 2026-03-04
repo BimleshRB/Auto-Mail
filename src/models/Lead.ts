@@ -13,6 +13,7 @@ const LeadSchema = new mongoose.Schema({
   companyName: { type: String, required: true },
   targetRole: { type: String, required: true },
   status: { type: String, enum: ['pending', 'applied', 'failed'], default: 'pending' },
+  verificationStatus: { type: String, enum: ['unverified', 'valid', 'bounced', 'catch-all', 'unknown'], default: 'unverified' },
   generatedTemplate: { type: String, default: '' },
   subject: { type: String, default: '' },
 }, { timestamps: true });

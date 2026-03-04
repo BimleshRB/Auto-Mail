@@ -24,6 +24,9 @@ const UserSchema = new mongoose.Schema({
   }],
   apiKeys: {
     gemini: { type: [String], default: [] },
+    zerobounce: { type: [String], default: [] },
+    hunter: { type: [String], default: [] },
+    abstract: { type: [String], default: [] }
   },
   jobPreferences: {
     roles: { type: [String], default: [] }

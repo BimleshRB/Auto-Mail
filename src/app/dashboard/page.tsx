@@ -16,7 +16,7 @@ export default function Dashboard() {
   const { data: session } = useSession();
   const [profile, setProfile] = useState({
     emailConfig: { gmailAddress: "", appPassword: "" },
-    apiKeys: { geminiAsString: "" },
+    apiKeys: { geminiAsString: "", zerobounce: [] as string[], hunter: [] as string[], abstract: [] as string[] },
     professionalLinks: { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
     jobPreferences: { roles: [] as string[] },
     apiUsageLogs: [] as any[]
@@ -58,7 +58,12 @@ export default function Dashboard() {
 
         setProfile({
           emailConfig: data.emailConfig || { gmailAddress: "", appPassword: "" },
-          apiKeys: { geminiAsString: geminiStr },
+          apiKeys: { 
+            geminiAsString: geminiStr,
+            zerobounce: data.apiKeys?.zerobounce || [],
+            hunter: data.apiKeys?.hunter || [],
+            abstract: data.apiKeys?.abstract || []
+          },
           professionalLinks: data.professionalLinks || { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
           jobPreferences: data.jobPreferences || { roles: [] },
           apiUsageLogs: data.apiUsageLogs || []
@@ -103,7 +108,7 @@ export default function Dashboard() {
     setLoadingProfile(false);
   };
 
-  const handleProfileChange = (section: 'emailConfig' | 'professionalLinks' | 'apiKeys', field: string, value: string) => {
+  const handleProfileChange = (section: 'emailConfig' | 'professionalLinks' | 'apiKeys', field: string, value: string | string[]) => {
     setProfile(prev => ({
       ...prev,
       [section]: {
@@ -361,6 +366,47 @@ export default function Dashboard() {
                       <p className="text-xs text-zinc-500 mt-2">Enter multiple keys separated by commas. We will auto-rotate them if you hit limits.</p>
                     </div>
                   </div>
+                </div>
+                
+                {/* Email Verification Engines Section */}
+                <div className="space-y-5 relative mt-8">
+                   <div className="absolute -inset-4 bg-zinc-950/30 rounded-2xl border border-white/5 pointer-events-none shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]" />
+                   <div className="relative z-10 space-y-4">
+                     <h3 className="text-xs font-bold text-emerald-400/80 uppercase tracking-widest flex items-center gap-2">
+                       <ShieldAlert className="w-3.5 h-3.5" /> Identity Verification Engines (Optional)
+                     </h3>
+                     
+                     <div className="space-y-4">
+                        <div>
+                          <Label className={labelClasses}>ZeroBounce API Keys (Recommended)</Label>
+                          <Input 
+                            className={`${inputClasses} font-mono text-sm tracking-wide`}
+                            value={profile.apiKeys?.zerobounce ? profile.apiKeys.zerobounce.join(', ') : ""} 
+                            onChange={(e) => handleProfileChange('apiKeys', 'zerobounce', e.target.value.split(',').map(k => k.trim()).filter(k => k))} 
+                            placeholder="zba_..." 
+                          />
+                        </div>
+                        <div>
+                          <Label className={labelClasses}>Hunter.io API Keys (Tier 2 Fallback)</Label>
+                          <Input 
+                            className={`${inputClasses} font-mono text-sm tracking-wide`}
+                            value={profile.apiKeys?.hunter ? profile.apiKeys.hunter.join(', ') : ""} 
+                            onChange={(e) => handleProfileChange('apiKeys', 'hunter', e.target.value.split(',').map(k => k.trim()).filter(k => k))} 
+                            placeholder="hunter_..." 
+                          />
+                        </div>
+                        <div>
+                          <Label className={labelClasses}>AbstractAPI Free Keys (Tier 3 Fallback)</Label>
+                          <Input 
+                            className={`${inputClasses} font-mono text-sm tracking-wide`}
+                            value={profile.apiKeys?.abstract ? profile.apiKeys.abstract.join(', ') : ""} 
+                            onChange={(e) => handleProfileChange('apiKeys', 'abstract', e.target.value.split(',').map(k => k.trim()).filter(k => k))} 
+                            placeholder="abs_..." 
+                          />
+                        </div>
+                     </div>
+                     <p className="text-xs text-zinc-500 mt-2">Enter multiple keys per provider separated by commas. We will rotate them seamlessly and fallback across providers if rate limits are hit.</p>
+                   </div>
                 </div>
 
                 {/* Professional Links Section */}

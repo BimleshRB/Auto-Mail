@@ -42,16 +42,16 @@ export async function POST(req: Request) {
       const mxPromises = batch.map(async (lead) => {
         try {
           const domain = lead.hrEmail.split('@')[1];
-          if (!domain) return lead._id; // Invalid format is an invalid domain
+          if (!domain) return lead._id.toString(); // Invalid format is an invalid domain
           
           const records = await dns.promises.resolveMx(domain);
           if (!records || records.length === 0) {
-             return lead._id;
+             return lead._id.toString();
           }
           return null; // Valid
         } catch (err) {
           // If DNS lookup itself fails (NXDOMAIN), the domain doesn't exist
-          return lead._id;
+          return lead._id.toString();
         }
       });
 
