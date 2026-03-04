@@ -75,23 +75,56 @@ export async function POST(req: Request) {
 
     let generatedText = '';
     let lastError = null;
+    let usageLogs = user.apiUsageLogs || [];
 
-    // Try each key sequentially
-    for (const key of geminiKeys) {
+    // Smart Load Balancing: Sort keys by Least Used First based on telemetry logs
+    const usageMap = new Map();
+    usageLogs.forEach((l: any) => usageMap.set(l.keyPrefix, l.requestsMade));
+    
+    const sortedKeys = [...geminiKeys].sort((a, b) => {
+      const aUsage = usageMap.get(a.substring(0, 15)) || 0;
+      const bUsage = usageMap.get(b.substring(0, 15)) || 0;
+      return aUsage - bUsage;
+    });
+
+    // Try keys starting with the least utilized one
+    for (const key of sortedKeys) {
+      const keyPrefix = key.substring(0, 15); // Track by prefix so we don't store full plaintext keys in logs
+      
       try {
         const genAI = new GoogleGenerativeAI(key);
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         
         const result = await model.generateContent(prompt);
         generatedText = result.response.text().trim();
+        
+        // Success! Log the usage execution
+        const logIndex = usageLogs.findIndex((l: any) => l.keyPrefix === keyPrefix);
+        if (logIndex > -1) {
+          usageLogs[logIndex].requestsMade += 1;
+          usageLogs[logIndex].lastUsed = new Date();
+        } else {
+          usageLogs.push({ keyPrefix, requestsMade: 1, lastUsed: new Date() });
+        }
+        
+        // Save the telemetry array
+        await User.updateOne({ _id: user._id }, { $set: { apiUsageLogs: usageLogs } });
+        
         break; // Success! Break out of the loop
       } catch (err: any) {
-        console.error(`Gemini API Error with key ending in ...${key.slice(-4)}:`, err);
+        console.error(`[DEBUG GENERATE] Gemini SDK Error with key prefix ${keyPrefix}:`, err?.message || err);
         lastError = err;
         
-        // Typical HTTP 429 means Rate Limit - continue to next key. 
-        // If it's a different error (like a 400 Bad Request on the prompt itself), 
-        // we might still want to just try the next key just in case, but usually 429 is the main rotation trigger.
+        // Log the failure attempt so we know when it was last tripped
+        const logIndex = usageLogs.findIndex((l: any) => l.keyPrefix === keyPrefix);
+        if (logIndex > -1) {
+          usageLogs[logIndex].lastUsed = new Date();
+        } else {
+          usageLogs.push({ keyPrefix, requestsMade: 0, lastUsed: new Date() });
+        }
+        await User.updateOne({ _id: user._id }, { $set: { apiUsageLogs: usageLogs } });
+        
+        console.log(`[DEBUG GENERATE] Rate limit or API error hit. Rotating to next available key...`);
         continue;
       }
     }

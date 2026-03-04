@@ -5,7 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import Lead from '@/models/Lead';
 import User from '@/models/User';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.email) {
@@ -19,8 +19,26 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Fetch leads for this specific user, newest first
-    const leads = await Lead.find({ userId: user._id }).sort({ createdAt: -1 });
+    // Use `URL` to extract the campaignName from the request
+    const { searchParams } = new URL(req.url);
+    const campaignName = searchParams.get('campaignName');
+
+    // Fetch leads for this specific user, newest first. If a campaign is specified, filter by it.
+    const query: any = { userId: user._id };
+    
+    if (campaignName && campaignName !== 'Default Campaign') {
+      query.campaignName = campaignName;
+    } else if (campaignName === 'Default Campaign') {
+      // For the Default Campaign, also include legacy leads that have no campaignName
+      query.$or = [
+        { campaignName: 'Default Campaign' },
+        { campaignName: { $exists: false } },
+        { campaignName: null },
+        { campaignName: "" }
+      ];
+    }
+
+    const leads = await Lead.find(query).sort({ createdAt: -1 });
     return NextResponse.json({ leads });
   } catch (error: any) {
     console.error('Error fetching leads:', error);
@@ -35,7 +53,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { leads } = await req.json(); // Expecting an array of lead objects
+    const { leads, campaignName } = await req.json(); // Expecting an array of lead objects and an optional campaign name
 
     if (!leads || !Array.isArray(leads) || leads.length === 0) {
       return NextResponse.json({ error: 'Valid leads array is required' }, { status: 400 });
@@ -48,9 +66,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Default to 'Default Campaign' if user doesn't provide one
+    const targetCampaign = campaignName && campaignName.trim() !== '' ? campaignName.trim() : 'Default Campaign';
+
     const leadsWithUserId = leads.map(lead => ({
       ...lead,
       userId: user._id,
+      campaignName: targetCampaign,
       status: 'pending' // Force status to pending on creation
     }));
 

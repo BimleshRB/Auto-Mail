@@ -11,12 +11,17 @@ const UserSchema = new mongoose.Schema({
   },
   professionalLinks: {
     resume: { type: String, default: '' },
-    resumeText: { type: String, default: '' },
     portfolio: { type: String, default: '' },
     github: { type: String, default: '' },
     linkedin: { type: String, default: '' },
-    twitter: { type: String, default: '' },
+    website: { type: String, default: '' },
+    resumeText: { type: String, default: '' } // Raw text input of their resume
   },
+  apiUsageLogs: [{
+    keyPrefix: { type: String, required: true },
+    requestsMade: { type: Number, default: 0 },
+    lastUsed: { type: Date, default: Date.now }
+  }],
   apiKeys: {
     gemini: { type: [String], default: [] },
   },
@@ -25,4 +30,7 @@ const UserSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-export default mongoose.models.User || mongoose.model('User', UserSchema);
+// Check if the model is already compiled to prevent Next.js overwrite errs
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
+export default User;

@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { Settings, Target, Send, Mail, Briefcase, Link as LinkIcon, Lock, Sparkles, LogOut, ShieldAlert, UserCircle, CheckCircle2, AlertCircle, Bot } from "lucide-react";
-import { BulkCampaign } from "@/components/BulkCampaign";
+import { Settings, Target, Send, Mail, Briefcase, Link as LinkIcon, Lock, Sparkles, LogOut, ShieldAlert, UserCircle, CheckCircle2, AlertCircle, Bot, Activity, ServerCrash, ChevronDown } from "lucide-react";
+import { BulkUpload } from "@/components/BulkUpload";
+import { LeadDatabase } from "@/components/LeadDatabase";
 
 export default function Dashboard() {
   const { data: session } = useSession();
@@ -17,7 +18,8 @@ export default function Dashboard() {
     emailConfig: { gmailAddress: "", appPassword: "" },
     apiKeys: { geminiAsString: "" },
     professionalLinks: { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
-    jobPreferences: { roles: [] as string[] }
+    jobPreferences: { roles: [] as string[] },
+    apiUsageLogs: [] as any[]
   });
 
   const [targetDetails, setTargetDetails] = useState({
@@ -34,7 +36,8 @@ export default function Dashboard() {
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: "", type: null });
-  const [activeTab, setActiveTab] = useState<'profile' | 'bulk'>('bulk');
+  const [activeTab, setActiveTab] = useState<'config' | 'single' | 'bulk' | 'database'>('database');
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
 
   const predefinedRoles = ["Frontend Developer", "Backend Developer", "Full Stack Developer", "DevOps Engineer", "Mobile Developer", "AI/ML Engineer", "Product Manager"];
 
@@ -57,7 +60,8 @@ export default function Dashboard() {
           emailConfig: data.emailConfig || { gmailAddress: "", appPassword: "" },
           apiKeys: { geminiAsString: geminiStr },
           professionalLinks: data.professionalLinks || { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
-          jobPreferences: data.jobPreferences || { roles: [] }
+          jobPreferences: data.jobPreferences || { roles: [] },
+          apiUsageLogs: data.apiUsageLogs || []
         });
         if (data.jobPreferences?.roles?.length > 0) {
           setTargetDetails(prev => ({ ...prev, targetRole: data.jobPreferences.roles[0] }));
@@ -239,26 +243,38 @@ export default function Dashboard() {
         </div>
 
         {/* Dashboard Tabs */}
-        <motion.div custom={0.5} initial="hidden" animate="visible" variants={staggerVariants} className="flex space-x-6 border-b border-white/10 mb-8 px-2">
+        <motion.div custom={0.5} initial="hidden" animate="visible" variants={staggerVariants} className="flex space-x-6 border-b border-white/10 mb-8 px-2 overflow-x-auto custom-scrollbar">
           <button 
-            onClick={() => setActiveTab('profile')} 
-            className={`pb-4 font-semibold text-sm transition-all border-b-2 ${activeTab === 'profile' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/20'}`}
+            onClick={() => setActiveTab('config')} 
+            className={`pb-4 font-semibold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'config' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/20'}`}
           >
-            System & Operations
+            System Config
+          </button>
+          <button 
+            onClick={() => setActiveTab('single')} 
+            className={`pb-4 font-semibold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'single' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/20'}`}
+          >
+            Single Target
           </button>
           <button 
             onClick={() => setActiveTab('bulk')} 
-            className={`pb-4 font-semibold text-sm transition-all border-b-2 ${activeTab === 'bulk' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/20'}`}
+            className={`pb-4 font-semibold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'bulk' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/20'}`}
           >
-            Bulk Neural Campaign
+            Bulk Upload
+          </button>
+          <button 
+            onClick={() => setActiveTab('database')} 
+            className={`pb-4 font-semibold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'database' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/20'}`}
+          >
+            Lead Database
           </button>
         </motion.div>
 
-        {activeTab === 'profile' && (
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+        {activeTab === 'config' && (
+          <div className="max-w-4xl mx-auto space-y-8">
             
-            {/* Column 1: Profile Settings (5 columns width) */}
-          <motion.div custom={1} initial="hidden" animate="visible" variants={staggerVariants} className="xl:col-span-5 relative">
+            {/* System Profile Settings */}
+          <motion.div custom={1} initial="hidden" animate="visible" variants={staggerVariants} className="relative">
             <Card className={cardClasses}>
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-30" />
               <CardHeader className="pb-6 pt-8 px-6 lg:px-8">
@@ -417,8 +433,55 @@ export default function Dashboard() {
             </Card>
           </motion.div>
 
-          {/* Column 2: Target Details & Email Preview (7 columns width) */}
-          <div className="xl:col-span-7 space-y-8 relative">
+          {/* API Health Tracking UI */}
+          <motion.div custom={2} initial="hidden" animate="visible" variants={staggerVariants} className="relative">
+            <Card className={cardClasses}>
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-rose-500 to-transparent opacity-30" />
+              <CardHeader className="pb-6 pt-8 px-6 lg:px-8">
+                <CardTitle className="flex items-center justify-between gap-3 text-xl font-bold tracking-tight text-white mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-zinc-800/80 ring-1 ring-white/10 shadow-inner">
+                      <Activity className="w-5 h-5 text-rose-400" />
+                    </div>
+                    API Health & Limits
+                  </div>
+                </CardTitle>
+                <CardDescription className="text-zinc-500 text-sm font-medium">Real-time usage telemetry across your rotating Gemini instances.</CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 lg:px-8 pb-8">
+                {profile.apiUsageLogs && profile.apiUsageLogs.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                     {profile.apiUsageLogs.map((log: any, idx: number) => (
+                       <div key={idx} className="bg-zinc-950/60 border border-white/5 rounded-2xl p-4 flex flex-col gap-3">
+                         <div className="flex justify-between items-center text-xs font-mono text-zinc-500">
+                           <span>Key Prefix</span>
+                           <span className="text-white bg-zinc-800 px-2 py-0.5 rounded-md">{log.keyPrefix}</span>
+                         </div>
+                         <div className="flex justify-between items-end border-t border-white/5 pt-3">
+                           <div className="flex items-center gap-2">
+                             <ServerCrash className="w-4 h-4 text-rose-500" />
+                             <span className="text-2xl font-bold text-white leading-none">{log.requestsMade} <span className="text-xs text-zinc-500 uppercase tracking-widest ml-1 font-sans">Hits</span></span>
+                           </div>
+                           <div className="text-[10px] text-zinc-600 text-right">
+                             Last executed:<br/>
+                             {new Date(log.lastUsed).toLocaleString()}
+                           </div>
+                         </div>
+                       </div>
+                     ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-sm font-medium text-zinc-600 py-6">No telemetry recorded yet. Generate templates to track API usage.</div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+        )}
+
+        {/* Column 2: Target Details & Email Preview (7 columns width) */}
+        {activeTab === 'single' && (
+          <div className="max-w-5xl mx-auto space-y-8">
             
             {/* Target Details */}
             <motion.div custom={2} initial="hidden" animate="visible" variants={staggerVariants}>
@@ -469,17 +532,44 @@ export default function Dashboard() {
                   <div>
                     <Label className={labelClasses}>Desired Position</Label>
                     <div className="relative">
-                      <Briefcase className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-600 pointer-events-none" />
-                      <select 
-                        className={`${inputClasses} pl-10 appearance-none`}
-                        value={targetDetails.targetRole}
-                        onChange={(e) => setTargetDetails(prev => ({ ...prev, targetRole: e.target.value }))}
+                      <Briefcase className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-600 pointer-events-none z-10" />
+                      
+                      <button 
+                        type="button"
+                        onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
+                        className={`${inputClasses} pl-10 w-full text-left flex items-center justify-between ${!targetDetails.targetRole ? 'text-zinc-500' : 'text-white'}`}
                       >
-                        <option value="" disabled className="bg-zinc-900">Select position structure...</option>
-                        {predefinedRoles.map(role => (
-                          <option key={role} value={role} className="bg-zinc-900">{role}</option>
-                        ))}
-                      </select>
+                        <span className="truncate">{targetDetails.targetRole || "Select position structure..."}</span>
+                        <ChevronDown className="w-4 h-4 text-zinc-600 shrink-0" />
+                      </button>
+
+                      <AnimatePresence>
+                        {roleDropdownOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setRoleDropdownOpen(false)} />
+                            <motion.div 
+                              initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: 0.15 }}
+                              className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 ring-1 ring-white/5"
+                            >
+                              <div className="max-h-60 overflow-y-auto custom-scrollbar py-1">
+                                {predefinedRoles.map(role => (
+                                  <div 
+                                    key={role}
+                                    onClick={() => {
+                                      setTargetDetails(prev => ({ ...prev, targetRole: role }));
+                                      setRoleDropdownOpen(false);
+                                    }}
+                                    className={`px-3 py-2.5 mx-1 my-0.5 rounded-lg text-sm cursor-pointer flex items-center justify-between transition-colors ${targetDetails.targetRole === role ? 'bg-indigo-500/20 text-indigo-300 font-bold' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                                  >
+                                    <span className="truncate">{role}</span>
+                                    {targetDetails.targetRole === role && <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />}
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
                   <Button 
@@ -536,16 +626,21 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </motion.div>
-
           </div>
-        </div>
         )}
         
-        {/* Bulk Campaign Full Width */}
+        {/* Bulk Upload Component */}
         {activeTab === 'bulk' && (
-          <motion.div custom={1} initial="hidden" animate="visible" variants={staggerVariants}>
-            <BulkCampaign profile={profile} showNotification={showNotification} />
+          <motion.div custom={1} initial="hidden" animate="visible" variants={staggerVariants} className="max-w-5xl mx-auto">
+            <BulkUpload showNotification={showNotification} />
           </motion.div>
+        )}
+        
+        {/* Lead Database Component */}
+        {activeTab === 'database' && (
+           <motion.div custom={1} initial="hidden" animate="visible" variants={staggerVariants}>
+             <LeadDatabase profile={profile} showNotification={showNotification} />
+           </motion.div>
         )}
       </div>
     </div>

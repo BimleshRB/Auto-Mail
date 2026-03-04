@@ -1,40 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Papa from "papaparse";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import Papa from 'papaparse';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UploadCloud, Bot, PlayCircle, Loader2, CheckCircle2, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Database, AlertCircle, Loader2, PlayCircle, Trash2, Bot } from "lucide-react";
+import { motion } from "framer-motion";
 
-interface Lead {
-  _id?: string;
-  hrName: string;
-  hrEmail: string;
-  companyName: string;
-  targetRole: string;
-  status: 'pending' | 'applied' | 'failed';
-  generatedTemplate?: string;
-}
-
-export function BulkCampaign({ profile, showNotification }: { profile: any, showNotification: (msg: string, type: 'success'|'error') => void }) {
-  const [leads, setLeads] = useState<Lead[]>([]);
+export function LeadDatabase({ profile, showNotification }: { profile: any, showNotification: Function }) {
+  const [leads, setLeads] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [globalRole, setGlobalRole] = useState(profile?.jobPreferences?.roles?.[0] || 'Software Engineer');
   const [dispatchLimit, setDispatchLimit] = useState<number | ''>(20);
   
-  // Campaign Lists State
   const [campaigns, setCampaigns] = useState<string[]>([]);
   const [activeCampaign, setActiveCampaign] = useState<string>('Default Campaign');
   
-  // Single Lead Form State
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newLead, setNewLead] = useState({ hrName: '', hrEmail: '', companyName: '', targetRole: '', campaignName: activeCampaign });
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'applied' | 'failed'>('all');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  
+  // Custom Confirmation Modal
+  const [confirmDetails, setConfirmDetails] = useState<{ isOpen: boolean, action: 'delete' | 'clean' | null }>({ isOpen: false, action: null });
 
   const filteredLeads = leads.filter(l => statusFilter === 'all' || l.status === statusFilter);
 
@@ -44,7 +35,6 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
 
   useEffect(() => {
     fetchLeads();
-    setNewLead(prev => ({ ...prev, campaignName: activeCampaign }));
   }, [activeCampaign]);
 
   const fetchCampaigns = async () => {
@@ -53,11 +43,9 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
       if (res.ok) {
         const data = await res.json();
         const apiCampaigns = data.campaigns || [];
-        // Ensure "Default Campaign" always exists in the UI list
         const uniqueCampaigns = Array.from(new Set([...apiCampaigns, 'Default Campaign'])).sort();
         setCampaigns(uniqueCampaigns as string[]);
         
-        // If the current active is no longer in the list (e.g. they deleted it), reset to Default
         if (!uniqueCampaigns.includes(activeCampaign)) {
           setActiveCampaign('Default Campaign');
         }
@@ -75,7 +63,7 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
       if (res.ok) {
         const data = await res.json();
         setLeads(data.leads || []);
-        setSelectedIds(new Set()); // Reset selection on fetch
+        setSelectedIds(new Set()); 
       }
     } catch (err) {
       console.error("Failed to fetch leads");
@@ -110,9 +98,10 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} leads?`)) return;
+    setConfirmDetails({ isOpen: true, action: 'delete' });
+  };
 
+  const executeDelete = async () => {
     try {
       const res = await fetch('/api/leads', {
         method: 'DELETE',
@@ -132,8 +121,10 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
 
   const handleCleanSelected = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`This will verify the domain for ${selectedIds.size} leads and permanently delete any invalid ones. Proceed?`)) return;
+    setConfirmDetails({ isOpen: true, action: 'clean' });
+  };
 
+  const executeClean = async () => {
     setExecuting(true);
     try {
       const res = await fetch('/api/leads/clean', {
@@ -155,115 +146,6 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
     setSelectedIds(new Set());
   };
 
-  const handleAddSingleLead = async () => {
-    if (!newLead.hrName || !newLead.hrEmail || !newLead.companyName) {
-      showNotification("Name, Email, and Company are required.", "error");
-      return;
-    }
-
-    try {
-      // Include the current active campaign conceptually, or the one typed into the form
-      const payload = { ...newLead, campaignName: newLead.campaignName || activeCampaign };
-      
-      const res = await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          leads: [payload],
-          campaignName: payload.campaignName
-        })
-      });
-      
-      if (res.ok) {
-        showNotification("Lead added successfully.", "success");
-        setNewLead({ hrName: '', hrEmail: '', companyName: '', targetRole: '', campaignName: activeCampaign });
-        setShowAddForm(false);
-        // Refresh state
-        if (payload.campaignName !== activeCampaign) {
-          setActiveCampaign(payload.campaignName);
-        } else {
-          fetchLeads();
-        }
-        fetchCampaigns(); // Update dropdown
-      } else {
-        showNotification("Failed to add lead.", "error");
-      }
-    } catch (err) {
-      showNotification("Error adding lead.", "error");
-    }
-  };
-
-  const handleFileUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = async (e: any) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      const userCampaignName = prompt("Enter a name for this Campaign List:", activeCampaign);
-      if (userCampaignName === null) {
-        showNotification("Upload cancelled.", "error");
-        return; // User hit cancel
-      }
-
-      Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => header.trim(),
-      complete: async (results) => {
-        // Map CSV headers to Lead schema 
-        // User specific headers: SNo, Name, Email, Title, Company
-        // The file has a leading comma making the first header empty, so row[""] exists.
-        const parsedLeads = results.data.map((row: any) => ({
-          hrName: (row.Name || row.hrName || row.name || "").trim(),
-          hrEmail: (row.Email || row.hrEmail || row.email || "").trim(),
-          companyName: (row.Company || row.companyName || row.company || "").trim(),
-          targetRole: (row.Title || row.Role || row.targetRole || row.role || "").trim()
-        })).filter(l => l.hrName && l.hrEmail && l.companyName);
-
-        if (parsedLeads.length === 0) {
-          console.error("Parsed Results Raw:", results.data[0]);
-          showNotification("No valid leads found in CSV. Make sure you have Name, Email, and Company columns.", "error");
-          return;
-        }
-
-        try {
-          const targetCampaign = userCampaignName.trim() !== '' ? userCampaignName.trim() : 'Default Campaign';
-          
-          const res = await fetch('/api/leads', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              leads: parsedLeads,
-              campaignName: targetCampaign
-            })
-          });
-          
-          if (res.ok) {
-            showNotification(`Successfully imported ${parsedLeads.length} leads into "${targetCampaign}".`, "success");
-            // Refresh
-            if (activeCampaign !== targetCampaign) {
-               setActiveCampaign(targetCampaign);
-            } else {
-               fetchLeads();
-            }
-            fetchCampaigns();
-          } else {
-            showNotification("Failed to save imported leads.", "error");
-          }
-        } catch (err) {
-          showNotification("Error uploading leads to server.", "error");
-        }
-      },
-      error: (err) => {
-        showNotification("Failed to parse CSV file.", "error");
-      }
-    });
-    };
-    input.click();
-  };
-
   const autoApplySelected = async () => {
     let selectedPending = leads.filter(l => selectedIds.has(l._id as string) && (l.status === 'pending' || l.status === 'failed'));
     
@@ -272,79 +154,112 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
       return;
     }
 
-    if (dispatchLimit !== '' && dispatchLimit > 0 && selectedPending.length > dispatchLimit) {
+    if (dispatchLimit !== '' && selectedPending.length > dispatchLimit) {
       selectedPending = selectedPending.slice(0, dispatchLimit);
-      showNotification(`Limiting dispatch to ${dispatchLimit} tasks...`, "success");
-    }
-
-    if (!profile.apiKeys.geminiAsString) {
-      showNotification("Please configure your Gemini API Key in the System Config first.", "error");
-      return;
+      showNotification(`Limiting execution to ${dispatchLimit} leads.`, "success");
     }
 
     setExecuting(true);
     let successCount = 0;
-    
+
     for (const lead of selectedPending) {
-      try {
-        // 1. Generate Template
-        const genRes = await fetch('/api/generate-template', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            hrName: lead.hrName,
-            companyName: lead.companyName,
-            hrEmail: lead.hrEmail,
-            targetRole: globalRole
-          })
-        });
+      let promptSuccess = false;
+      let template = '';
+      let subject = '';
+      let retries = 0;
+      
+      while (!promptSuccess && retries < 5) {
+        try {
+          const promptRes = await fetch('/api/generate-template', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              hrName: lead.hrName,
+              companyName: lead.companyName,
+              targetRole: globalRole || lead.targetRole
+            })
+          });
 
-        const genData = await genRes.json();
-        
-        if (!genRes.ok || !genData.template) {
-           throw new Error(genData.error || "Generation failed");
+          const promptData = await promptRes.json();
+          
+          if (!promptRes.ok) {
+             const errorMsg = promptData.error || "";
+             console.error("AI Generation Error: " + errorMsg);
+             
+             // Check if it's a known Rate Limit / Quota error
+             if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota') || errorMsg.toLowerCase().includes('rate limit')) {
+                showNotification(`API limits reached. Auto-pausing background runner for 40 seconds... (Attempt ${retries + 1}/5)`, "warning");
+                await new Promise(resolve => setTimeout(resolve, 40000)); // sleep 40s to wait out the Gemini RPM window
+                retries++;
+                continue; // retry generation
+             }
+             
+             // Permanent Error
+             await fetch('/api/leads', {
+               method: 'PATCH',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ id: lead._id, status: 'failed' })
+             });
+             setLeads(prev => prev.map(l => l._id === lead._id ? { ...l, status: 'failed' } : l));
+             break; // break retry loop, move to next lead
+          }
+
+          template = promptData.template;
+          subject = `Application for ${globalRole || lead.targetRole}`;
+          promptSuccess = true;
+          
+        } catch (err) {
+          console.error("Network Error during Generation:", err);
+          break; // break retry loop, move to next lead
         }
+      }
 
-        const template = genData.template;
-        const subject = `Application for ${globalRole} role at ${lead.companyName}`;
+      if (!promptSuccess) {
+         continue; // Only proceed to Send if generation completely succeeded
+      }
 
-        // 2. Send Email
+      try {
         const sendRes = await fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            hrEmail: lead.hrEmail,
-            emailBody: template,
-            subject: subject
+             hrEmail: lead.hrEmail,
+             subject: subject,
+             emailBody: template,
           })
         });
 
-        if (!sendRes.ok) {
-          throw new Error("Dispatch failed");
+        const sendData = await sendRes.json();
+        
+        if (sendRes.ok) {
+          await fetch('/api/leads', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              id: lead._id, 
+              status: 'applied',
+              generatedTemplate: template,
+              subject: subject
+            })
+          });
+
+          setLeads(prev => prev.map(l => l._id === lead._id ? { ...l, status: 'applied', generatedTemplate: template, subject: subject } : l));
+          successCount++;
+        } else {
+           console.error("Nodemailer Dispatch Error: " + sendData.error);
+           await fetch('/api/leads', {
+             method: 'PATCH',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ id: lead._id, status: 'failed' })
+           });
+           setLeads(prev => prev.map(l => l._id === lead._id ? { ...l, status: 'failed' } : l));
         }
 
-        // 3. Update Database to 'applied' and store template
-        await fetch('/api/leads', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: lead._id,
-            status: 'applied',
-            generatedTemplate: template,
-            subject: subject
-          })
-        });
-
-        successCount++;
-        // Refresh local state to show progress
-        setLeads(prev => prev.map(l => l._id === lead._id ? { ...l, status: 'applied', generatedTemplate: template } : l));
-
-        // Wait a few seconds to respect standard APIs
+        // Add a 2-second sleep to pace the API organically
         await new Promise(resolve => setTimeout(resolve, 2000));
-
-      } catch (err: any) {
-        console.error(`Failed executing lead ${lead.hrEmail}:`, err);
-        // Mark as failed
+        
+      } catch (err) {
+        console.error("Fatal Loop Error:", err);
         await fetch('/api/leads', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -355,7 +270,7 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
     }
 
     setExecuting(false);
-    setSelectedIds(new Set()); // Clear selection after processing
+    setSelectedIds(new Set()); 
     showNotification(`Campaign Finished! Applied to ${successCount} out of ${selectedPending.length} selected leads.`, "success");
   };
 
@@ -369,35 +284,51 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
           <div>
             <CardTitle className="flex items-center gap-3 text-xl font-bold tracking-tight text-white mb-2">
               <div className="p-2 rounded-lg bg-zinc-800/80 ring-1 ring-white/10 shadow-inner">
-                <Bot className="w-5 h-5 text-zinc-300" />
+                <Database className="w-5 h-5 text-zinc-300" />
               </div>
-              Bulk Neural Campaign
+              Lead Database
               
-              <div className="ml-4 flex items-center gap-2 text-sm font-medium">
+              <div className="ml-4 flex items-center gap-2 text-sm font-medium relative">
                 <span className="text-zinc-500">List:</span>
-                <select 
-                  value={activeCampaign}
-                  onChange={(e) => setActiveCampaign(e.target.value)}
-                  className="bg-zinc-800/50 border border-white/10 rounded-lg px-2 py-1 text-zinc-300 outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                >
-                  {campaigns.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                
+                <div className="relative">
+                  <button 
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="flex items-center justify-between gap-2 min-w-[160px] bg-zinc-800/80 border border-white/10 rounded-lg px-3 py-1.5 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <span className="truncate max-w-[140px] font-semibold tracking-wide">{activeCampaign}</span>
+                    <ChevronDown className="w-4 h-4 text-zinc-500 shrink-0" />
+                  </button>
+
+                  {dropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                      <div className="absolute top-11 right-0 w-[240px] bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 ring-1 ring-white/5">
+                        <div className="max-h-64 overflow-y-auto custom-scrollbar py-1">
+                          {campaigns.map(c => (
+                            <div 
+                              key={c}
+                              onClick={() => {
+                                setActiveCampaign(c);
+                                setDropdownOpen(false);
+                              }}
+                              className={`px-3 py-2.5 mx-1 my-0.5 rounded-lg text-sm cursor-pointer flex items-center justify-between transition-colors ${activeCampaign === c ? 'bg-indigo-500/20 text-indigo-300 font-bold' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                            >
+                              <span className="truncate">{c}</span>
+                              {activeCampaign === c && <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </CardTitle>
-            <CardDescription className="text-zinc-500 text-sm font-medium">Upload a CSV or add leads to synthesize and dispatch AI templates.</CardDescription>
+            <CardDescription className="text-zinc-500 text-sm font-medium">Manage leads across your campaigns and execute AI email dispatches.</CardDescription>
           </div>
           
           <div className="flex flex-wrap items-center justify-start xl:justify-end gap-3 w-full xl:w-auto mt-2 xl:mt-0">
-            <Button 
-              onClick={() => setShowAddForm(!showAddForm)}
-              disabled={executing}
-              className="h-10 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 font-bold text-white tracking-wide transition-all gap-2 shrink-0"
-            >
-              <Plus className="w-4 h-4" /> Add Lead
-            </Button>
-
             {selectedIds.size > 0 && (
               <Button 
                 onClick={handleCleanSelected}
@@ -458,55 +389,8 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
       
       <CardContent className="px-6 lg:px-8 pb-8">
         
-        {/* Single Lead Manual Form */}
-        {showAddForm && (
-          <div className="mb-8 p-6 rounded-2xl bg-zinc-950/50 border border-indigo-500/20 animate-in fade-in slide-in-from-top-4">
-            <h3 className="text-sm font-bold text-white mb-4">Add Single Lead Manually</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-              <div>
-                <Label className="text-xs text-zinc-400">Name</Label>
-                <Input value={newLead.hrName} onChange={e => setNewLead({...newLead, hrName: e.target.value})} className="bg-zinc-900 border-white/10 text-white" />
-              </div>
-              <div>
-                <Label className="text-xs text-zinc-400">Email</Label>
-                <Input type="email" value={newLead.hrEmail} onChange={e => setNewLead({...newLead, hrEmail: e.target.value})} className="bg-zinc-900 border-white/10 text-white" />
-              </div>
-              <div>
-                <Label className="text-xs text-zinc-400">Company</Label>
-                <Input value={newLead.companyName} onChange={e => setNewLead({...newLead, companyName: e.target.value})} className="bg-zinc-900 border-white/10 text-white" />
-              </div>
-              <div>
-                <Label className="text-xs text-zinc-400">Role</Label>
-                <Input value={newLead.targetRole} onChange={e => setNewLead({...newLead, targetRole: e.target.value})} placeholder="Software Engineer" className="bg-zinc-900 border-white/10 text-white" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="ghost" className="text-zinc-400" onClick={() => setShowAddForm(false)}>Cancel</Button>
-              <Button className="bg-indigo-600 hover:bg-indigo-500 text-white" onClick={handleAddSingleLead}>Save Lead</Button>
-            </div>
-          </div>
-        )}
-
-        {/* CSV Upload Area */}
-        <div className="border border-dashed border-white/20 rounded-2xl p-8 text-center bg-zinc-950/30 mb-8 relative hover:bg-zinc-950/50 transition-colors">
-          <input 
-            type="file" 
-            accept=".csv" 
-            onChange={handleFileUpload} 
-            disabled={executing}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" 
-          />
-          <div className="flex flex-col items-center gap-3 pointer-events-none">
-            <div className="p-3 bg-indigo-500/10 rounded-xl">
-              <UploadCloud className="w-8 h-8 text-indigo-400" />
-            </div>
-            <div className="font-semibold text-white">Upload Candidates CSV</div>
-            <div className="text-zinc-500 text-sm max-w-sm">Requires headers: <span className="text-zinc-300">Name</span>, <span className="text-zinc-300">Email</span>, <span className="text-zinc-300">Company</span>. Optional: <span className="text-zinc-300">Title</span> or <span className="text-zinc-300">Role</span>.</div>
-          </div>
-        </div>
-
         {/* Lead Data Table Controls */}
-        <div className="flex items-center justify-between mb-4 px-2">
+        <div className="flex items-center justify-between mb-4 px-2 mt-4">
           <div className="flex space-x-2 bg-zinc-950/50 p-1 rounded-xl border border-white/5 overflow-x-auto custom-scrollbar">
             {(['all', 'pending', 'applied', 'failed'] as const).map(filter => (
               <button
@@ -547,7 +431,7 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
           ) : filteredLeads.length === 0 ? (
             <div className="py-10 text-center text-zinc-500 text-sm">No leads match the current view. Upload a CSV or change the filter.</div>
           ) : (
-            <div className="max-h-[400px] overflow-y-auto space-y-3 custom-scrollbar px-1">
+            <div className="max-h-[600px] overflow-y-auto space-y-3 custom-scrollbar px-1">
               {filteredLeads.map((lead, i) => (
                 <div key={i} className="flex flex-col rounded-xl bg-zinc-950/50 border border-white/5 hover:border-white/10 transition-colors overflow-hidden">
                   <div className="flex items-center p-4 cursor-pointer" onClick={() => lead.status === 'applied' && setExpandedLeadId(expandedLeadId === lead._id ? null : (lead._id as string))}>
@@ -601,6 +485,48 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
           )}
         </div>
       </CardContent>
+
+      {/* Custom Confirmation Modal */}
+      {confirmDetails.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-white mb-2">
+              {confirmDetails.action === 'delete' ? 'Delete Leads' : 'Clean & Validate Leads'}
+            </h3>
+            <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+              {confirmDetails.action === 'delete' 
+                ? `Are you sure you want to permanently delete ${selectedIds.size} selected leads? This action cannot be undone.`
+                : `This will verify the domains for ${selectedIds.size} selected leads and permanently delete any invalid ones. Proceed?`}
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button 
+                variant="ghost" 
+                className="text-zinc-400 hover:text-white" 
+                onClick={() => setConfirmDetails({ isOpen: false, action: null })}
+              >
+                Cancel
+              </Button>
+              <Button 
+                className={`text-white px-6 font-bold tracking-wide ${
+                  confirmDetails.action === 'delete' 
+                    ? 'bg-rose-600 hover:bg-rose-500' 
+                    : 'bg-orange-600 hover:bg-orange-500'
+                }`} 
+                onClick={() => {
+                  if (confirmDetails.action === 'delete') {
+                    executeDelete();
+                  } else if (confirmDetails.action === 'clean') {
+                    executeClean();
+                  }
+                  setConfirmDetails({ isOpen: false, action: null });
+                }}
+              >
+                Confirm
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
