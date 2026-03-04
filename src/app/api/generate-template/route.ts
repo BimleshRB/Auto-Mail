@@ -28,17 +28,23 @@ export async function POST(req: Request) {
 
     const { professionalLinks, apiKeys } = user;
 
-    // Use user provided array, fallback to global if none exist. Decrypt before handing to Google SDK.
+    // Use user provided array. Decrypt before handing to Google SDK.
     const rawKeys = Array.isArray(apiKeys?.gemini) ? apiKeys.gemini : [];
     const decryptedKeys = rawKeys.map((k: string) => decryptData(k)).filter(Boolean) as string[];
 
-    const geminiKeys: string[] = decryptedKeys.length > 0 
+    console.log(`[DEBUG GENERATE] Found ${decryptedKeys.length} Gemini API keys in user profile for ${session.user.email}`);
+
+    // STRICT PRIORITY: Use user profile keys FIRST. Only fallback to env if they explicitly have 0 keys in their profile.
+    const geminiKeys: string[] = decryptedKeys.length > 0
       ? decryptedKeys 
       : process.env.GEMINI_API_KEY ? [process.env.GEMINI_API_KEY] : [];
 
     if (geminiKeys.length === 0) {
+      console.error("[DEBUG GENERATE] No Gemini API keys available. Aborting generation.");
       return NextResponse.json({ error: 'No Gemini API Keys found. Please configure them in your System Config or set GEMINI_API_KEY globally.' }, { status: 500 });
     }
+
+    console.log(`[DEBUG GENERATE] Using Gemini API key starting with ${geminiKeys[0].substring(0, 5)}...`);
 
     const prompt = `
       You are an expert software engineer writing a highly professional, concise, and compelling cold email to a recruiter/HR manager.

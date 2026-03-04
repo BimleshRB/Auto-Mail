@@ -24,11 +24,15 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [globalRole, setGlobalRole] = useState(profile?.jobPreferences?.roles?.[0] || 'Software Engineer');
+  const [dispatchLimit, setDispatchLimit] = useState<number | ''>(20);
   
   // Single Lead Form State
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLead, setNewLead] = useState({ hrName: '', hrEmail: '', companyName: '', targetRole: '' });
   const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'applied' | 'failed'>('all');
+
+  const filteredLeads = leads.filter(l => statusFilter === 'all' || l.status === statusFilter);
 
   useEffect(() => {
     fetchLeads();
@@ -50,11 +54,18 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.size === leads.length) {
-      setSelectedIds(new Set());
+    const filteredIds = filteredLeads.map(l => l._id as string);
+    if (filteredIds.length === 0) return;
+    
+    const allSessionSelected = filteredIds.every(id => selectedIds.has(id));
+    const newSelected = new Set(selectedIds);
+    
+    if (allSessionSelected) {
+      filteredIds.forEach(id => newSelected.delete(id));
     } else {
-      setSelectedIds(new Set(leads.map(l => l._id as string)));
+      filteredIds.forEach(id => newSelected.add(id));
     }
+    setSelectedIds(newSelected);
   };
 
   const toggleSelect = (id: string) => {
@@ -87,6 +98,31 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
     } catch (error) {
       showNotification("Error deleting leads.", "error");
     }
+  };
+
+  const handleCleanSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`This will verify the domain for ${selectedIds.size} leads and permanently delete any invalid ones. Proceed?`)) return;
+
+    setExecuting(true);
+    try {
+      const res = await fetch('/api/leads/clean', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification(`Clean complete. Validated ${data.processedCount} domains. Deleted ${data.deletedCount} invalid leads.`, 'success');
+        fetchLeads();
+      } else {
+        showNotification(`Failed to clean leads: ${data.error}`, 'error');
+      }
+    } catch (err) {
+      showNotification("Error during clean operation.", "error");
+    }
+    setExecuting(false);
+    setSelectedIds(new Set());
   };
 
   const handleAddSingleLead = async () => {
@@ -164,11 +200,16 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
   };
 
   const autoApplySelected = async () => {
-    const selectedPending = leads.filter(l => selectedIds.has(l._id as string) && l.status === 'pending');
+    let selectedPending = leads.filter(l => selectedIds.has(l._id as string) && (l.status === 'pending' || l.status === 'failed'));
     
     if (selectedPending.length === 0) {
-      showNotification("No pending leads selected.", "error");
+      showNotification("No pending or failed leads selected to apply.", "error");
       return;
+    }
+
+    if (dispatchLimit !== '' && dispatchLimit > 0 && selectedPending.length > dispatchLimit) {
+      selectedPending = selectedPending.slice(0, dispatchLimit);
+      showNotification(`Limiting dispatch to ${dispatchLimit} tasks...`, "success");
     }
 
     if (!profile.apiKeys.geminiAsString) {
@@ -281,6 +322,16 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
 
             {selectedIds.size > 0 && (
               <Button 
+                onClick={handleCleanSelected}
+                disabled={executing}
+                className="h-10 px-4 rounded-xl bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/30 font-bold tracking-wide transition-all gap-2 shrink-0"
+              >
+                <AlertCircle className="w-4 h-4" /> Clean ({selectedIds.size})
+              </Button>
+            )}
+
+            {selectedIds.size > 0 && (
+              <Button 
                 onClick={handleDeleteSelected}
                 disabled={executing}
                 className="h-10 px-4 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 font-bold tracking-wide transition-all gap-2 shrink-0"
@@ -295,15 +346,29 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
                 <Input 
                   value={globalRole} 
                   onChange={e => setGlobalRole(e.target.value)}
-                  className="h-10 w-40 sm:w-48 bg-zinc-900/80 border-white/10 text-white placeholder-zinc-500 font-medium"
+                  className="h-10 w-32 sm:w-40 bg-zinc-900/80 border-white/10 text-white placeholder-zinc-500 font-medium"
                   placeholder="e.g. Software Engineer"
                 />
               </div>
             )}
 
+            {selectedIds.size > 0 && (
+               <div className="flex items-center gap-2 shrink-0">
+                 <Label className="text-xs text-zinc-400 whitespace-nowrap">Limit:</Label>
+                 <Input 
+                   type="number"
+                   min="1"
+                   value={dispatchLimit} 
+                   onChange={e => setDispatchLimit(e.target.value === '' ? '' : Number(e.target.value))}
+                   className="h-10 w-20 bg-zinc-900/80 border-white/10 text-white font-medium text-center"
+                   placeholder="Max"
+                 />
+               </div>
+            )}
+
             <Button 
               onClick={autoApplySelected}
-              disabled={executing || leads.filter(l => selectedIds.has(l._id as string) && l.status === 'pending').length === 0}
+              disabled={executing || leads.filter(l => selectedIds.has(l._id as string) && (l.status === 'pending' || l.status === 'failed')).length === 0}
               className="h-10 px-6 rounded-xl bg-cyan-600 hover:bg-cyan-500 shadow-[0_0_20px_rgba(8,145,178,0.2)] hover:shadow-[0_0_25px_rgba(8,145,178,0.4)] border border-cyan-400/20 font-bold text-white tracking-wide transition-all gap-2 shrink-0"
             >
               {executing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
@@ -362,13 +427,32 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
           </div>
         </div>
 
+        {/* Lead Data Table Controls */}
+        <div className="flex items-center justify-between mb-4 px-2">
+          <div className="flex space-x-2 bg-zinc-950/50 p-1 rounded-xl border border-white/5 overflow-x-auto custom-scrollbar">
+            {(['all', 'pending', 'applied', 'failed'] as const).map(filter => (
+              <button
+                key={filter}
+                onClick={() => setStatusFilter(filter)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === filter ? 'bg-indigo-500 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-zinc-500 font-medium tracking-wide">
+            {selectedIds.size > 0 && <span className="text-indigo-400 font-bold mr-2">{selectedIds.size} selected</span>}
+            Showing {filteredLeads.length} of {leads.length} leads
+          </div>
+        </div>
+
         {/* Lead Data Table */}
         <div className="space-y-4">
           <div className="flex items-center text-sm font-bold tracking-wider text-zinc-400 uppercase pb-2 border-b border-white/10 px-2 mt-4 ml-2 mr-2">
             <div className="w-[10%] flex items-center pr-2">
               <input 
                 type="checkbox" 
-                checked={leads.length > 0 && selectedIds.size === leads.length}
+                checked={filteredLeads.length > 0 && filteredLeads.every(l => selectedIds.has(l._id as string))}
                 onChange={handleSelectAll}
                 className="w-4 h-4 rounded border-white/10 bg-zinc-900 cursor-pointer"
               />
@@ -382,11 +466,11 @@ export function BulkCampaign({ profile, showNotification }: { profile: any, show
              <div className="py-10 text-center text-zinc-500 text-sm flex items-center justify-center gap-2">
                <Loader2 className="w-4 h-4 animate-spin" /> Loading Leads...
              </div>
-          ) : leads.length === 0 ? (
-            <div className="py-10 text-center text-zinc-500 text-sm">No leads in your campaign pipeline yet. Upload a CSV to begin.</div>
+          ) : filteredLeads.length === 0 ? (
+            <div className="py-10 text-center text-zinc-500 text-sm">No leads match the current view. Upload a CSV or change the filter.</div>
           ) : (
             <div className="max-h-[400px] overflow-y-auto space-y-3 custom-scrollbar px-1">
-              {leads.map((lead, i) => (
+              {filteredLeads.map((lead, i) => (
                 <div key={i} className="flex flex-col rounded-xl bg-zinc-950/50 border border-white/5 hover:border-white/10 transition-colors overflow-hidden">
                   <div className="flex items-center p-4 cursor-pointer" onClick={() => lead.status === 'applied' && setExpandedLeadId(expandedLeadId === lead._id ? null : (lead._id as string))}>
                     <div className="w-[10%] flex items-center pr-2" onClick={e => e.stopPropagation()}>

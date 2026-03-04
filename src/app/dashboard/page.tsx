@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | null }>({ text: "", type: null });
+  const [activeTab, setActiveTab] = useState<'profile' | 'bulk'>('bulk');
 
   const predefinedRoles = ["Frontend Developer", "Backend Developer", "Full Stack Developer", "DevOps Engineer", "Mobile Developer", "AI/ML Engineer", "Product Manager"];
 
@@ -237,9 +238,26 @@ export default function Dashboard() {
           </AnimatePresence>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-          
-          {/* Column 1: Profile Settings (5 columns width) */}
+        {/* Dashboard Tabs */}
+        <motion.div custom={0.5} initial="hidden" animate="visible" variants={staggerVariants} className="flex space-x-6 border-b border-white/10 mb-8 px-2">
+          <button 
+            onClick={() => setActiveTab('profile')} 
+            className={`pb-4 font-semibold text-sm transition-all border-b-2 ${activeTab === 'profile' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/20'}`}
+          >
+            System & Operations
+          </button>
+          <button 
+            onClick={() => setActiveTab('bulk')} 
+            className={`pb-4 font-semibold text-sm transition-all border-b-2 ${activeTab === 'bulk' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/20'}`}
+          >
+            Bulk Neural Campaign
+          </button>
+        </motion.div>
+
+        {activeTab === 'profile' && (
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            
+            {/* Column 1: Profile Settings (5 columns width) */}
           <motion.div custom={1} initial="hidden" animate="visible" variants={staggerVariants} className="xl:col-span-5 relative">
             <Card className={cardClasses}>
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-30" />
@@ -521,11 +539,14 @@ export default function Dashboard() {
 
           </div>
         </div>
+        )}
         
         {/* Bulk Campaign Full Width */}
-        <motion.div custom={4} initial="hidden" animate="visible" variants={staggerVariants} className="mt-8">
-          <BulkCampaign profile={profile} showNotification={showNotification} />
-        </motion.div>
+        {activeTab === 'bulk' && (
+          <motion.div custom={1} initial="hidden" animate="visible" variants={staggerVariants}>
+            <BulkCampaign profile={profile} showNotification={showNotification} />
+          </motion.div>
+        )}
       </div>
     </div>
   );

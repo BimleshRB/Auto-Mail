@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import dbConnect from '@/lib/mongodb';
@@ -17,6 +18,19 @@ export async function POST(req: Request) {
 
     if (!hrEmail || !emailBody) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Verify MX record to prevent bouncing on fake/invalid domains
+    try {
+      const domain = hrEmail.split('@')[1];
+      if (!domain) throw new Error("Invalid email format");
+      const records = await dns.promises.resolveMx(domain);
+      if (!records || records.length === 0) {
+        throw new Error("No MX records found");
+      }
+    } catch (err: any) {
+      console.error(`[DEBUG SEND] MX Verification failed for: ${hrEmail}`, err.message);
+      return NextResponse.json({ error: "Email domain verification failed. The recipient domain does not exist or cannot accept mail." }, { status: 400 });
     }
 
     await dbConnect();
