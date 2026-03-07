@@ -382,7 +382,7 @@ export function LeadDatabase({ profile, showNotification }: { profile: any, show
             <CardDescription className="text-zinc-500 text-sm font-medium">Manage leads across your campaigns and execute AI email dispatches.</CardDescription>
           </div>
           
-          <div className="flex flex-wrap items-center justify-start xl:justify-end gap-3 w-full xl:w-auto mt-2 xl:mt-0">
+          <div className="flex flex-wrap items-center justify-start gap-4 w-full mt-4 xl:mt-0">
             {selectedIds.size > 0 && (
               <>
                 <Button 
@@ -423,7 +423,7 @@ export function LeadDatabase({ profile, showNotification }: { profile: any, show
                 <Input 
                   value={globalRole} 
                   onChange={e => setGlobalRole(e.target.value)}
-                  className="h-10 w-32 sm:w-40 bg-zinc-900/80 border-white/10 text-white placeholder-zinc-500 font-medium"
+                  className="h-10 w-[140px] sm:w-40 bg-zinc-900/80 border-white/10 text-white placeholder-zinc-500 font-medium"
                   placeholder="e.g. Software Engineer"
                 />
               </div>

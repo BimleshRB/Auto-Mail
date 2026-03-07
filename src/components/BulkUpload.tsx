@@ -7,17 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UploadCloud, Bot, ChevronDown, CheckCircle2 } from "lucide-react";
+import { UploadCloud, Bot, ChevronDown, CheckCircle2, ClipboardType } from "lucide-react";
 
 export function BulkUpload({ showNotification }: { showNotification: Function }) {
   const [campaigns, setCampaigns] = useState<string[]>([]);
   const [activeCampaign, setActiveCampaign] = useState<string>('Default Campaign');
   
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showPasteForm, setShowPasteForm] = useState(false);
   const [newLead, setNewLead] = useState({ hrName: '', hrEmail: '', companyName: '', targetRole: '' });
+  const [pastedText, setPastedText] = useState('');
   
   // Custom Modal State
-  const [promptDetails, setPromptDetails] = useState<{ isOpen: boolean, actionType: 'upload' | 'single', payload?: any }>({ isOpen: false, actionType: 'single' });
+  const [promptDetails, setPromptDetails] = useState<{ isOpen: boolean, actionType: 'upload' | 'single' | 'paste', payload?: any }>({ isOpen: false, actionType: 'single' });
   const [customCampaignName, setCustomCampaignName] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   
@@ -148,6 +150,48 @@ export function BulkUpload({ showNotification }: { showNotification: Function })
     executeSingleLead(newLead, activeCampaign);
   };
 
+  const executePaste = async (text: string, targetCampaign: string) => {
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (header) => header.trim(),
+      complete: async (results) => {
+        const parsedLeads = results.data.map((row: any) => ({
+          hrName: (row.Name || row.hrName || row.name || "").toString().trim(),
+          hrEmail: (row.Email || row.hrEmail || row.email || "").toString().trim(),
+          companyName: (row.Company || row.companyName || row.company || "").toString().trim(),
+          targetRole: (row.Title || row.Role || row.targetRole || row.role || "").toString().trim()
+        })).filter(l => l.hrName && l.hrEmail && l.companyName);
+
+        if (parsedLeads.length === 0) {
+          showNotification("No valid leads found in pasted text. Make sure you have Name, Email, and Company columns.", "error");
+          return;
+        }
+
+        await uploadToBackend(parsedLeads, targetCampaign);
+        setPastedText('');
+        setShowPasteForm(false);
+      },
+      error: (err: any) => {
+        showNotification("Failed to parse pasted text.", "error");
+      }
+    });
+  };
+
+  const handlePasteSubmit = () => {
+    if (!pastedText.trim()) {
+      showNotification("Please paste some content first.", "error");
+      return;
+    }
+
+    if (activeCampaign === '--new--') {
+      setPromptDetails({ isOpen: true, actionType: 'paste', payload: pastedText });
+      return;
+    }
+    
+    executePaste(pastedText, activeCampaign);
+  };
+
   const executeSingleLead = async (leadData: any, targetCampaign: string) => {
     try {
       const payload = { ...leadData, campaignName: targetCampaign };
@@ -182,6 +226,8 @@ export function BulkUpload({ showNotification }: { showNotification: Function })
     
     if (promptDetails.actionType === 'upload') {
        executeUpload(promptDetails.payload, customCampaignName.trim());
+    } else if (promptDetails.actionType === 'paste') {
+       executePaste(promptDetails.payload, customCampaignName.trim());
     } else {
        executeSingleLead(promptDetails.payload, customCampaignName.trim());
     }
@@ -271,7 +317,14 @@ export function BulkUpload({ showNotification }: { showNotification: Function })
 
           <div className="flex flex-wrap items-center justify-start xl:justify-end gap-3 w-full xl:w-auto mt-2 xl:mt-0">
             <Button 
-              onClick={() => setShowAddForm(!showAddForm)}
+              onClick={() => { setShowAddForm(false); setShowPasteForm(!showPasteForm); }}
+              className="h-10 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 font-bold text-white tracking-wide transition-all gap-2 shrink-0"
+            >
+              <ClipboardType className="w-4 h-4 ml-[-2px] text-zinc-400" />
+              Paste Data
+            </Button>
+            <Button 
+              onClick={() => { setShowPasteForm(false); setShowAddForm(!showAddForm); }}
               className="h-10 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 font-bold text-white tracking-wide transition-all gap-2 shrink-0"
             >
               Add Single Lead
@@ -307,6 +360,24 @@ export function BulkUpload({ showNotification }: { showNotification: Function })
             <div className="flex justify-end gap-3">
               <Button variant="ghost" className="text-zinc-400" onClick={() => setShowAddForm(false)}>Cancel</Button>
               <Button className="bg-indigo-600 hover:bg-indigo-500 text-white" onClick={handleAddSingleLead}>Save Target to Database</Button>
+            </div>
+          </div>
+        )}
+
+        {/* Paste Format Form */}
+        {showPasteForm && (
+          <div className="mb-8 p-6 rounded-2xl bg-zinc-950/50 border border-indigo-500/20 animate-in fade-in slide-in-from-top-4">
+            <h3 className="text-sm font-bold text-white mb-2">Paste CSV Data Directly</h3>
+            <p className="text-xs text-zinc-400 mb-4">Requires headers: Name, Email, Company. Optional: Role or Title.</p>
+            <textarea
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              className="w-full h-40 bg-zinc-900 border border-white/10 rounded-xl p-4 text-zinc-300 font-mono text-sm leading-relaxed custom-scrollbar focus:outline-none focus:ring-1 focus:ring-indigo-500 mb-4"
+              placeholder="Name,Company,Role,Email&#10;John Doe,Tech Inc,Engineer,john@tech.inc"
+            />
+            <div className="flex justify-end gap-3">
+              <Button variant="ghost" className="text-zinc-400" onClick={() => setShowPasteForm(false)}>Cancel</Button>
+              <Button className="bg-indigo-600 hover:bg-indigo-500 text-white" onClick={handlePasteSubmit}>Parse & Upload Content</Button>
             </div>
           </div>
         )}
