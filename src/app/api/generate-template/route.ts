@@ -62,6 +62,7 @@ export async function POST(req: Request) {
       - GitHub: ${professionalLinks?.github || 'N/A'}
       - LinkedIn: ${professionalLinks?.linkedin || 'N/A'}
       - Twitter: ${professionalLinks?.twitter || 'N/A'}
+      - Mobile Number: ${professionalLinks?.mobileNumber || 'N/A'}
       
       Requirements:
       - Keep it under 150 words.
@@ -69,7 +70,9 @@ export async function POST(req: Request) {
       - Extract relevant framing from my "Raw Resume Context" to prove I am a perfect fit for the "${targetRole}" role at "${companyName}".
       - Mention the target role and company name clearly.
       - End with a call to action.
-      - Do not include placeholders like "[Your Name]". Assume the sender will review it. Just write the email body.
+      - CRITICAL SYSTEM RULE: DO NOT use any bracketed placeholders like [Your Name], [Insert Link], or [Resume URL].
+      - CRITICAL SYSTEM RULE: If you reference my Resume, Portfolio, GitHub, or LinkedIn, you MUST output the EXACT raw HTTP link provided above. Do not mask it.
+      - If a specific link is 'N/A', do not mention that platform.
       - No subject line in the output, just the body of the email.
     `;
 

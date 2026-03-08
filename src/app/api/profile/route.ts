@@ -23,7 +23,7 @@ export async function GET() {
         {
           $setOnInsert: {
             emailConfig: { gmailAddress: '', appPassword: '' },
-            professionalLinks: { resume: '', resumeText: '', portfolio: '', github: '', linkedin: '', twitter: '' },
+            professionalLinks: { resume: '', resumeText: '', portfolio: '', github: '', linkedin: '', twitter: '', mobileNumber: '' },
             apiKeys: { gemini: [], zerobounce: [], hunter: [], abstract: [] },
             jobPreferences: { roles: [] }
           }

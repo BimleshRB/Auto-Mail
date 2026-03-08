@@ -17,7 +17,7 @@ export default function Dashboard() {
   const [profile, setProfile] = useState({
     emailConfig: { gmailAddress: "", appPassword: "" },
     apiKeys: { geminiAsString: "", zerobounce: [] as string[], hunter: [] as string[], abstract: [] as string[] },
-    professionalLinks: { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
+    professionalLinks: { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "", mobileNumber: "" },
     jobPreferences: { roles: [] as string[] },
     apiUsageLogs: [] as any[]
   });
@@ -64,7 +64,7 @@ export default function Dashboard() {
             hunter: data.apiKeys?.hunter || [],
             abstract: data.apiKeys?.abstract || []
           },
-          professionalLinks: data.professionalLinks || { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "" },
+          professionalLinks: data.professionalLinks || { resume: "", resumeText: "", portfolio: "", github: "", linkedin: "", twitter: "", mobileNumber: "" },
           jobPreferences: data.jobPreferences || { roles: [] },
           apiUsageLogs: data.apiUsageLogs || []
         });
@@ -451,6 +451,15 @@ export default function Dashboard() {
                           value={profile.professionalLinks.linkedin} 
                           onChange={(e) => handleProfileChange('professionalLinks', 'linkedin', e.target.value)} 
                           placeholder="https://linkedin.com/in/..." 
+                        />
+                      </div>
+                      <div>
+                        <Label className={labelClasses}>Mobile Number</Label>
+                        <Input 
+                          className={`${inputClasses} text-sm`}
+                          value={profile.professionalLinks.mobileNumber || ''} 
+                          onChange={(e) => handleProfileChange('professionalLinks', 'mobileNumber', e.target.value)} 
+                          placeholder="+1 (555) 123-4567" 
                         />
                       </div>
                     </div>

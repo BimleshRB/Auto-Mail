@@ -15,6 +15,7 @@ const UserSchema = new mongoose.Schema({
     github: { type: String, default: '' },
     linkedin: { type: String, default: '' },
     website: { type: String, default: '' },
+    mobileNumber: { type: String, default: '' },
     resumeText: { type: String, default: '' } // Raw text input of their resume
   },
   apiUsageLogs: [{
