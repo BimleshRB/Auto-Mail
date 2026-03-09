@@ -71,7 +71,9 @@ export async function POST(req: Request) {
 
     const updatePayload: any = {};
     if (emailConfig) {
-      if (emailConfig.appPassword && emailConfig.appPassword.trim() !== '') {
+      // Only encrypt and save the app password if the user ACTUALLY typed a new one. 
+      // If it's a bunch of asterisks (or the raw decoded string if they didn't touch it), ignore it.
+      if (emailConfig.appPassword && emailConfig.appPassword.trim() !== '' && !emailConfig.appPassword.includes('••••')) {
         updatePayload['emailConfig.appPassword'] = encryptData(emailConfig.appPassword);
       }
       if (emailConfig.gmailAddress !== undefined) {

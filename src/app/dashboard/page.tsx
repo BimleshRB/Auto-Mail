@@ -218,7 +218,7 @@ export default function Dashboard() {
               <UserCircle className="w-4 h-4 text-indigo-400" /> 
               {session?.user?.email}
             </div>
-            {(session?.user as any)?.role === 'admin' && (
+            {((session?.user as any)?.role?.toLowerCase() === 'admin') && (
               <Button asChild variant="outline" className="rounded-full border-white/10 text-zinc-300 hover:text-white hover:bg-white/5 font-medium shadow-sm transition-colors">
                 <a href="/admin"><ShieldAlert className="w-4 h-4 mr-2 text-rose-400"/> Admin Panel</a>
               </Button>
@@ -276,7 +276,7 @@ export default function Dashboard() {
         </motion.div>
 
         {activeTab === 'config' && (
-          <div className="max-w-4xl mx-auto space-y-8">
+          <div className="w-full space-y-8">
             
             {/* System Profile Settings */}
           <motion.div custom={1} initial="hidden" animate="visible" variants={staggerVariants} className="relative">
@@ -291,9 +291,10 @@ export default function Dashboard() {
                 </CardTitle>
                 <CardDescription className="text-zinc-500 text-sm mt-2 font-medium">Configure credentials and digital footprint.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 px-6 lg:px-8 pb-8">
-                
-                {/* Email Section */}
+              <CardContent className="px-6 lg:px-8 pb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Left Column: System Configurations */}
+                  <div className="space-y-8">
                 <div className="space-y-5 relative">
                    <div className="absolute -inset-4 bg-zinc-950/30 rounded-2xl border border-white/5 pointer-events-none shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]" />
                    <div className="relative z-10 space-y-4">
@@ -408,15 +409,18 @@ export default function Dashboard() {
                      <p className="text-xs text-zinc-500 mt-2">Enter multiple keys per provider separated by commas. We will rotate them seamlessly and fallback across providers if rate limits are hit.</p>
                    </div>
                 </div>
+                  </div>
 
-                {/* Professional Links Section */}
-                <div className="space-y-5 relative mt-8">
+                  {/* Right Column: Web Presence */}
+                  <div className="space-y-8">
+                    {/* Professional Links Section */}
+                    <div className="space-y-5 relative">
                    <div className="absolute -inset-4 bg-zinc-950/30 rounded-2xl border border-white/5 pointer-events-none shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]" />
                    <div className="relative z-10 space-y-4">
                      <h3 className="text-xs font-bold text-purple-400/80 uppercase tracking-widest flex items-center gap-2">
                        <LinkIcon className="w-3.5 h-3.5" /> Web Presence
                      </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <Label className={labelClasses}>Resume</Label>
                         <Input 
@@ -475,15 +479,17 @@ export default function Dashboard() {
                         placeholder="Paste your entire resume text here. The AI will use this strictly as context to synthesize highly personalized email drafts." 
                       />
                     </div>
+                  </div>
                 </div>
 
                 <Button 
                   onClick={saveProfile} 
                   disabled={loadingProfile} 
-                  className="w-full h-12 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] font-bold tracking-wide transition-all mt-6"
+                  className="w-full h-12 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] font-bold tracking-wide transition-all mt-8"
                 >
                   {loadingProfile ? "Syncing..." : "Save Configuration"}
                 </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>

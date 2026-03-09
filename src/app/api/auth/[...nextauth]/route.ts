@@ -2,6 +2,8 @@ import NextAuth, { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { MongoDBAdapter } from "@auth/mongodb-adapter"
 import clientPromise from "@/lib/mongodb-client"
+import dbConnect from "@/lib/mongodb"
+import User from "@/models/User"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -19,6 +21,20 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as any).role || "user"
       }
+      
+      // Always ensure we have the latest role from DB if it's missing or to ensure it's up to date
+      if (token.email) {
+         try {
+           await dbConnect();
+           const dbUser = await User.findOne({ email: token.email }).lean();
+           if (dbUser && dbUser.role) {
+             token.role = dbUser.role;
+           }
+         } catch (e) {
+           console.error("JWT role fetch error", e);
+         }
+      }
+
       return token
     },
     async session({ session, token }) {
